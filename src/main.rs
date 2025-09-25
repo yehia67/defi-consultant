@@ -1,9 +1,7 @@
 use agent_friend::{
     db, 
     investment_chat::InvestmentChatAgent, 
-    config::Config, 
-    logging,
-    exa_api::ExaApiClient
+    logging
 };
 use std::io::{self, Write};
 use std::path::Path;
@@ -102,10 +100,10 @@ async fn main() -> anyhow::Result<()> {
                             "Sorry, I encountered an error while processing your request. There might be an issue with the Anthropic API service."
                         }
                     },
-                    agent_friend::investment_chat::InvestmentChatError::Configuration(ref msg) => {
+                    agent_friend::investment_chat::InvestmentChatError::Configuration(ref _msg) => {
                         "Sorry, there's a configuration issue. Please check your .env file and ensure all required API keys are set correctly."
                     },
-                    agent_friend::investment_chat::InvestmentChatError::PriceApi(ref msg) => {
+                    agent_friend::investment_chat::InvestmentChatError::PriceApi(ref _msg) => {
                         "Sorry, I couldn't fetch the cryptocurrency price data. The price API might be experiencing issues or the cryptocurrency symbol might not be supported."
                     },
                     agent_friend::investment_chat::InvestmentChatError::ExternalApi(ref msg) => {

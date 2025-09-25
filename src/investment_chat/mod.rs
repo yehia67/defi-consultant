@@ -6,7 +6,7 @@ pub use constants::*;
 pub use error::*;
 pub use service::*;
 
-use crate::db::{self, DbError};
+use crate::db;
 use crate::exa_api::ExaApiClient;
 use crate::config::Config;
 use crate::price_fetcher;
@@ -235,6 +235,7 @@ impl InvestmentChatAgent {
     }
     
     /// Research a crypto project using Exa API
+    #[allow(dead_code)]
     async fn research_project(&self, project_name: &str) -> Result<String, InvestmentChatError> {
         // Check if we already have knowledge about this project
         let existing_knowledge = self.get_knowledge_by_tag(project_name).await?;

@@ -1,7 +1,5 @@
 use sqlx::{Pool, Postgres};
-use serde::{Deserialize, Serialize};
 use sqlx::types::JsonValue;
-use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::path::Path;
 use std::fs;
@@ -46,8 +44,17 @@ impl DataSourceManager {
     /// Initialize plugins for data sources
     pub fn initialize_plugins(&mut self) -> Result<()> {
         // This would normally load plugins from the sources directory
+        let sources_path = Path::new(&self.sources_dir);
+        if !sources_path.exists() {
+            fs::create_dir_all(sources_path)?;
+        }
         // For now, we'll just return Ok
         Ok(())
+    }
+    
+    /// Get the sources directory
+    pub fn get_sources_dir(&self) -> &str {
+        &self.sources_dir
     }
     
     /// Refresh all data sources
@@ -61,10 +68,10 @@ impl DataSourceManager {
     pub async fn add_source(
         &mut self,
         source_id: &str,
-        name: &str,
-        description: &str,
-        source_type: &str,
-        refresh_interval_minutes: i32,
+        _name: &str,
+        _description: &str,
+        _source_type: &str,
+        _refresh_interval_minutes: i32,
         config: JsonValue,
     ) -> Result<()> {
         // Add the source to the configs map
@@ -84,10 +91,10 @@ impl DataSourceManager {
     pub async fn update_source(
         &mut self,
         source_id: &str,
-        name: &str,
-        description: &str,
-        source_type: &str,
-        refresh_interval_minutes: i32,
+        _name: &str,
+        _description: &str,
+        _source_type: &str,
+        _refresh_interval_minutes: i32,
         config: JsonValue,
     ) -> Result<()> {
         // Update the source in the configs map
@@ -112,7 +119,7 @@ impl DataSourceManager {
     pub async fn refresh_source(&mut self, source_id: &str) -> Result<()> {
         // This would normally refresh the specific data source
         // For now, we'll just return Ok
-        if let Some(config) = self.configs.get(source_id) {
+        if let Some(_config) = self.configs.get(source_id) {
             // In a real implementation, we would use the config to refresh the data source
             // For now, we'll just return Ok
         }

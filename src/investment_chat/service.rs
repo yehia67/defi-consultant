@@ -2,7 +2,7 @@ use crate::investment_chat::InvestmentChatError;
 use reqwest::Client;
 use serde_json::json;
 use std::time::Duration;
-use tracing::{info, debug, error};
+use tracing::{debug, error};
 
 /// Get AI response using Anthropic API
 pub async fn get_ai_response(prompt: &str, api_key: &str) -> Result<String, InvestmentChatError> {
