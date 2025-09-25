@@ -106,8 +106,8 @@ async fn main() -> anyhow::Result<()> {
                     agent_friend::investment_chat::InvestmentChatError::PriceApi(ref _msg) => {
                         "Sorry, I couldn't fetch the cryptocurrency price data. The price API might be experiencing issues or the cryptocurrency symbol might not be supported."
                     },
-                    agent_friend::investment_chat::InvestmentChatError::ExternalApi(ref msg) => {
-                        if msg.contains("price") {
+                    agent_friend::investment_chat::InvestmentChatError::ExternalApi(ref _msg) => {
+                        if _msg.contains("price") {
                             "Sorry, I couldn't fetch the latest cryptocurrency price data. The price API might be experiencing issues."
                         } else {
                             "Sorry, I encountered an issue with an external API. Please try again later."

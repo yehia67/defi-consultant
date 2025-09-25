@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Error fetching Ethereum price: {}", e);
             
             // Try with API key if available
-            if let Ok(api_key) = env::var("COINGECKO_API_KEY") {
+            if let Ok(_api_key) = env::var("COINGECKO_API_KEY") {
                 println!("API key found, trying with API key...");
             } else {
                 println!("No API key found. Consider setting COINGECKO_API_KEY environment variable.");
