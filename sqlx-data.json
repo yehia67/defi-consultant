@@ -1,0 +1,16 @@
+{
+  "db": "PostgreSQL",
+  "5c2c3f7c9d5f3b9d0c9d5f3b9d0c9d5f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO messages (role, content) VALUES ($1, $2)"
+  }
+}

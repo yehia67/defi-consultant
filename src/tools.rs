@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use chrono::Local;
 use ethers::prelude::*;
 use ethers::types::transaction::eip2718::TypedTransaction;
 use rand::Rng;
@@ -31,16 +30,16 @@ pub struct ToolResponse {
 pub fn get_available_tools() -> Vec<Tool> {
     vec![
         Tool {
-            name: "get_weather".to_string(),
-            description: "Get the current weather for a given city".to_string(),
-        },
-        Tool {
-            name: "get_time".to_string(),
-            description: "Get the current time in a specific timezone or local time".to_string(),
-        },
-        Tool {
             name: "eth_wallet".to_string(),
             description: "Ethereum wallet operations: generate new wallet, check balance, or send ETH".to_string(),
+        },
+        Tool {
+            name: "trading".to_string(),
+            description: "Trading operations: check balances, analyze market, create limit orders".to_string(),
+        },
+        Tool {
+            name: "limit_orders".to_string(),
+            description: "Limit order operations: create, cancel, and check limit orders".to_string(),
         },
     ]
 }
@@ -52,18 +51,55 @@ pub fn get_tools_as_json() -> anyhow::Result<String> {
 
 pub async fn execute_tool(name: &str, args: &serde_json::Value) -> anyhow::Result<String> {
     match name {
-        "get_weather" => {
-            let city = args.get("city")
+        "trading" => {
+            let operation = args.get("operation")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
             
-            get_weather(city).await
+            match operation {
+                "balance" => {
+                    Ok("Use /trade balance to check your balances".to_string())
+                },
+                "analyze" => {
+                    Ok("Use /trade analyze to get trading recommendations".to_string())
+                },
+                _ => Ok(format!("Unknown trading operation: {}", operation)),
+            }
         },
-        "get_time" => {
-            let timezone = args.get("timezone")
-                .and_then(|v| v.as_str());
+        "limit_orders" => {
+            let operation = args.get("operation")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
             
-            get_time(timezone)
+            match operation {
+                "create" => {
+                    let order_type = args.get("order_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    let amount = args.get("amount")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("0");
+                    let price = args.get("price")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("0");
+                    
+                    Ok(format!("Use /trade limit {} {} {} to create a limit order", order_type, amount, price))
+                },
+                "list" => {
+                    Ok("Use /trade orders to list your open limit orders".to_string())
+                },
+                "cancel" => {
+                    let order_id = args.get("order_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    
+                    Ok(format!("Use /trade cancel {} to cancel a limit order", order_id))
+                },
+                "check" => {
+                    Ok("Use /trade check to check and execute limit orders".to_string())
+                },
+                _ => Ok(format!("Unknown limit order operation: {}", operation)),
+            }
         },
         "eth_wallet" => {
             let operation = args.get("operation")
@@ -110,38 +146,7 @@ pub async fn execute_tool(name: &str, args: &serde_json::Value) -> anyhow::Resul
     }
 }
 
-async fn get_weather(city: &str) -> anyhow::Result<String> {
-    // In a real implementation, you would call a weather API
-    // For this example, we'll return mock data
-    
-    // Simulate API call delay
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    
-    // Return mock data
-    match city.to_lowercase().as_str() {
-        "cairo" => Ok("30°C, sunny".to_string()),
-        "london" => Ok("15°C, cloudy with occasional rain".to_string()),
-        "new york" => Ok("22°C, partly cloudy".to_string()),
-        "tokyo" => Ok("25°C, clear skies".to_string()),
-        _ => Ok(format!("Weather data for {} is not available. This is a mock implementation.", city)),
-    }
-}
-
-fn get_time(timezone: Option<&str>) -> anyhow::Result<String> {
-    let now = Local::now();
-    
-    match timezone {
-        Some(tz) => {
-            // In a real implementation, you would handle different timezones
-            // For this example, we'll just return the local time with a note
-            Ok(format!("Current time (local, timezone {} not implemented): {}", 
-                      tz, now.format("%Y-%m-%d %H:%M:%S")))
-        },
-        None => {
-            Ok(format!("Current local time: {}", now.format("%Y-%m-%d %H:%M:%S")))
-        }
-    }
-}
+// Weather and time functions removed
 
 // In-memory wallet storage (for demo purposes)
 lazy_static::lazy_static! {

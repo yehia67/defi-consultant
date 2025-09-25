@@ -1,89 +1,126 @@
-mod anthropic;
-mod db;
-mod personality;
-mod tools;
-
-use db::{get_db_pool, save_message};
-use anthropic::call_anthropic_with_personality;
-use personality::load_personality;
-use tools::get_tools_as_json;
+use agent_friend::{
+    db, 
+    investment_chat::InvestmentChatAgent, 
+    config::Config, 
+    logging,
+    exa_api::ExaApiClient
+};
 use std::io::{self, Write};
 use std::path::Path;
+use tracing::{info, error};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Initialize logging
+    let log_dir = Path::new("./logs");
+    if let Err(e) = logging::init_logging(log_dir) {
+        eprintln!("Warning: Failed to initialize logging: {}", e);
+    }
+    
+    // Load environment variables
     dotenv::dotenv().ok();
-    let pool = get_db_pool().await;
+    info!("Starting Crypto Investment Agent");
     
-    // Load personality
-    let personality_path = Path::new("assets/personality.json");
-    let personality = match load_personality(personality_path.to_str().unwrap()) {
-        Ok(p) => {
-            println!("Loaded personality: {} - {}", p.name, p.role);
-            p
+    // Initialize database
+    info!("Initializing database connection");
+    match db::init_db_pool().await {
+        Ok(_) => info!("Database connection established"),
+        Err(e) => {
+            error!("Database connection failed: {}", e);
+            println!("Warning: Database connection failed. The agent will work without database features.");
+        }
+    }
+    
+    // Create agent
+    let username = "default_user";
+    info!("Creating investment chat agent for user: {}", username);
+    let agent = match InvestmentChatAgent::new(username).await {
+        Ok(agent) => {
+            info!("Agent created successfully");
+            agent
         },
         Err(e) => {
-            println!("Failed to load personality: {}", e);
-            return Err(anyhow::anyhow!("Failed to load personality"));
+            error!("Failed to create investment chat agent: {}", e);
+            return Err(anyhow::anyhow!("Failed to initialize agent: {}", e));
         }
     };
     
-    // Load available tools
-    match get_tools_as_json() {
-        Ok(tools_json) => {
-            println!("Loaded tools: {}", tools_json);
-        },
-        Err(e) => {
-            println!("Failed to load tools: {}", e);
-        }
-    };
+    // Welcome message
+    println!("\n=== Nova - Your Crypto Investment Advisor ===");
+    println!("Chat with Nova about crypto investments, market trends, and trading strategies.");
+    println!("Nova can research projects in real-time and provide personalized investment advice.");
+    println!("Type 'exit' or 'quit' to end the conversation.\n");
     
-    println!("Welcome to Agent Friend! I'm {}, your {}.", personality.name, personality.role);
-    println!("Type 'exit' to quit.");
+    // Initial greeting
+    let greeting = "Hi! I'm Nova, your crypto investment advisor. I can help you research projects, analyze market trends, and make informed investment decisions. What would you like to discuss today?";
+    println!("Nova: {}", greeting);
     
+    // Main chat loop
     loop {
-        // Prompt for user input
-        print!("You: ");
+        print!("\nYou: ");
         io::stdout().flush()?;
         
-        // Read user input
-        let mut user_input = String::new();
-        io::stdin().read_line(&mut user_input)?;
-        let user_input = user_input.trim();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        let input = input.trim();
         
-        // Check if user wants to exit
-        if user_input.to_lowercase() == "exit" {
-            println!("Goodbye!");
+        if input.to_lowercase() == "exit" || input.to_lowercase() == "quit" {
+            println!("\nNova: Thanks for chatting! Feel free to come back anytime you need investment advice.");
             break;
         }
         
         // Skip empty inputs
-        if user_input.is_empty() {
+        if input.is_empty() {
             continue;
         }
         
-        // Save user message to database if pool is available
-        if let Some(pool) = &pool {
-            if let Err(e) = save_message(pool, "user", user_input).await {
-                eprintln!("Failed to save user message: {}", e);
-            }
-        }
-        
-        // Get response from Claude with personality
-        print!("{} is thinking...", personality.name);
+        // Process the message
+        print!("\nNova is thinking...");
         io::stdout().flush()?;
-        let reply = call_anthropic_with_personality(user_input, Some(&personality)).await?;
-        println!("\r"); // Clear the "thinking" message
         
-        // Save assistant message to database if pool is available
-        if let Some(pool) = &pool {
-            if let Err(e) = save_message(pool, "assistant", &reply).await {
-                eprintln!("Failed to save assistant message: {}", e);
+        match agent.process_message(input).await {
+            Ok(response) => {
+                print!("\r"); // Clear the "thinking" message
+                println!("\nNova: {}", response);
+            },
+            Err(e) => {
+                print!("\r"); // Clear the "thinking" message
+                error!("Error processing message: {}", e);
+                
+                // Provide more specific error messages based on error type
+                let user_message = match e {
+                    agent_friend::investment_chat::InvestmentChatError::AnthropicApi(ref msg) => {
+                        if msg.contains("Authentication error") || msg.contains("Invalid API key") {
+                            "Sorry, I'm having trouble with my API authentication. Please check that your Anthropic API key is valid in the .env file."
+                        } else if msg.contains("Connection error") || msg.contains("timed out") {
+                            "Sorry, I'm having trouble connecting to my AI service. Please check your internet connection and try again."
+                        } else if msg.contains("Rate limit") {
+                            "Sorry, I've reached my usage limit with the AI service. Please try again in a few minutes."
+                        } else if msg.contains("Server error") {
+                            "Sorry, the AI service is currently experiencing issues. Please try again later."
+                        } else {
+                            "Sorry, I encountered an error while processing your request. There might be an issue with the Anthropic API service."
+                        }
+                    },
+                    agent_friend::investment_chat::InvestmentChatError::Configuration(ref msg) => {
+                        "Sorry, there's a configuration issue. Please check your .env file and ensure all required API keys are set correctly."
+                    },
+                    agent_friend::investment_chat::InvestmentChatError::PriceApi(ref msg) => {
+                        "Sorry, I couldn't fetch the cryptocurrency price data. The price API might be experiencing issues or the cryptocurrency symbol might not be supported."
+                    },
+                    agent_friend::investment_chat::InvestmentChatError::ExternalApi(ref msg) => {
+                        if msg.contains("price") {
+                            "Sorry, I couldn't fetch the latest cryptocurrency price data. The price API might be experiencing issues."
+                        } else {
+                            "Sorry, I encountered an issue with an external API. Please try again later."
+                        }
+                    },
+                    _ => "Sorry, I encountered an error while processing your request. Please try again."
+                };
+                
+                println!("\nNova: {}", user_message);
             }
         }
-        
-        // Display the response
-        println!("{}: {}", personality.name, reply);
     }
     
     Ok(())

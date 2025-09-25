@@ -1,0 +1,2286 @@
+diff --git a/.env.example b/.env.example
+index 0d073b8..cfb8dac 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,3 +1,6 @@
+ DATABASE_URL=postgres://agent:agent@localhost:5432/agentdb
+ ANTHROPIC_API_KEY=your_key
+-SEPOLIA_RPC_URL=https://1rpc.io/sepolia
+\ No newline at end of file
++BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
++PRIVATE_KEY=your_wallet_private_key
++1INCH_API_KEY=your_api_key
++EXA_API_KEY=your_exa_api_key_here
+diff --git a/Cargo.lock b/Cargo.lock
+index 6d957aa..a9e26f8 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -38,6 +38,28 @@ dependencies = [
+  "cpufeatures",
+ ]
+ 
++[[package]]
++name = "agent-friend"
++version = "0.1.0"
++dependencies = [
++ "anyhow",
++ "chrono",
++ "clap",
++ "dotenv",
++ "ethers",
++ "hex",
++ "lazy_static",
++ "rand 0.8.5",
++ "regex",
++ "reqwest 0.12.23",
++ "serde",
++ "serde_json",
++ "sqlx",
++ "tokio",
++ "urlencoding",
++ "uuid 1.18.1",
++]
++
+ [[package]]
+ name = "ahash"
+ version = "0.8.12"
+@@ -81,6 +103,56 @@ dependencies = [
+  "libc",
+ ]
+ 
++[[package]]
++name = "anstream"
++version = "0.6.20"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3ae563653d1938f79b1ab1b5e668c87c76a9930414574a6583a7b7e11a8e6192"
++dependencies = [
++ "anstyle",
++ "anstyle-parse",
++ "anstyle-query",
++ "anstyle-wincon",
++ "colorchoice",
++ "is_terminal_polyfill",
++ "utf8parse",
++]
++
++[[package]]
++name = "anstyle"
++version = "1.0.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "862ed96ca487e809f1c8e5a8447f6ee2cf102f846893800b20cebdf541fc6bbd"
++
++[[package]]
++name = "anstyle-parse"
++version = "0.2.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "4e7644824f0aa2c7b9384579234ef10eb7efb6a0deb83f9630a49594dd9c15c2"
++dependencies = [
++ "utf8parse",
++]
++
++[[package]]
++name = "anstyle-query"
++version = "1.1.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "9e231f6134f61b71076a3eab506c379d4f36122f2af15a9ff04415ea4c3339e2"
++dependencies = [
++ "windows-sys 0.60.2",
++]
++
++[[package]]
++name = "anstyle-wincon"
++version = "3.0.10"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3e0633414522a32ffaac8ac6cc8f748e090c5717661fddeea04219e2344f5f2a"
++dependencies = [
++ "anstyle",
++ "once_cell_polyfill",
++ "windows-sys 0.60.2",
++]
++
+ [[package]]
+ name = "anyhow"
+ version = "1.0.99"
+@@ -380,6 +452,7 @@ dependencies = [
+  "iana-time-zone",
+  "js-sys",
+  "num-traits",
++ "serde",
+  "wasm-bindgen",
+  "windows-link",
+ ]
+@@ -394,6 +467,46 @@ dependencies = [
+  "inout",
+ ]
+ 
++[[package]]
++name = "clap"
++version = "4.5.47"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7eac00902d9d136acd712710d71823fb8ac8004ca445a89e73a41d45aa712931"
++dependencies = [
++ "clap_builder",
++ "clap_derive",
++]
++
++[[package]]
++name = "clap_builder"
++version = "4.5.47"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2ad9bbf750e73b5884fb8a211a9424a1906c1e156724260fdae972f31d70e1d6"
++dependencies = [
++ "anstream",
++ "anstyle",
++ "clap_lex",
++ "strsim",
++]
++
++[[package]]
++name = "clap_derive"
++version = "4.5.47"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "bbfd7eae0b0f1a6e63d4b13c9c478de77c2eb546fba158ad50b4203dc24b9f9c"
++dependencies = [
++ "heck 0.5.0",
++ "proc-macro2",
++ "quote",
++ "syn 2.0.106",
++]
++
++[[package]]
++name = "clap_lex"
++version = "0.7.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
++
+ [[package]]
+ name = "coins-bip32"
+ version = "0.8.7"
+@@ -446,6 +559,12 @@ dependencies = [
+  "thiserror 1.0.69",
+ ]
+ 
++[[package]]
++name = "colorchoice"
++version = "1.0.4"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
++
+ [[package]]
+ name = "const-hex"
+ version = "1.14.1"
+@@ -864,7 +983,7 @@ dependencies = [
+  "sha2",
+  "sha3",
+  "thiserror 1.0.69",
+- "uuid",
++ "uuid 0.8.2",
+ ]
+ 
+ [[package]]
+@@ -2023,6 +2142,12 @@ dependencies = [
+  "serde",
+ ]
+ 
++[[package]]
++name = "is_terminal_polyfill"
++version = "1.70.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
++
+ [[package]]
+ name = "itertools"
+ version = "0.11.0"
+@@ -2394,23 +2519,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+ 
+ [[package]]
+-name = "onchain-agent-template"
+-version = "0.1.0"
+-dependencies = [
+- "anyhow",
+- "chrono",
+- "dotenv",
+- "ethers",
+- "hex",
+- "lazy_static",
+- "rand 0.8.5",
+- "regex",
+- "reqwest 0.12.23",
+- "serde",
+- "serde_json",
+- "sqlx",
+- "tokio",
+-]
++name = "once_cell_polyfill"
++version = "1.70.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a4895175b425cb1f87721b59f0f286c2092bd4af812243672510e1ac53e2e0ad"
+ 
+ [[package]]
+ name = "open-fastrlp"
+@@ -3691,6 +3803,7 @@ dependencies = [
+  "atoi",
+  "byteorder",
+  "bytes",
++ "chrono",
+  "crc",
+  "crossbeam-queue",
+  "either",
+@@ -3770,6 +3883,7 @@ dependencies = [
+  "bitflags 2.9.2",
+  "byteorder",
+  "bytes",
++ "chrono",
+  "crc",
+  "digest",
+  "dotenvy",
+@@ -3811,6 +3925,7 @@ dependencies = [
+  "base64 0.21.7",
+  "bitflags 2.9.2",
+  "byteorder",
++ "chrono",
+  "crc",
+  "dotenvy",
+  "etcetera",
+@@ -3846,6 +3961,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b244ef0a8414da0bed4bb1910426e890b19e5e9bccc27ada6b797d05c55ae0aa"
+ dependencies = [
+  "atoi",
++ "chrono",
+  "flume",
+  "futures-channel",
+  "futures-core",
+@@ -3897,6 +4013,12 @@ dependencies = [
+  "unicode-properties",
+ ]
+ 
++[[package]]
++name = "strsim"
++version = "0.11.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
++
+ [[package]]
+ name = "strum"
+ version = "0.26.3"
+@@ -4534,6 +4656,12 @@ version = "1.0.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+ 
++[[package]]
++name = "utf8parse"
++version = "0.2.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
++
+ [[package]]
+ name = "uuid"
+ version = "0.8.2"
+@@ -4544,6 +4672,17 @@ dependencies = [
+  "serde",
+ ]
+ 
++[[package]]
++name = "uuid"
++version = "1.18.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
++dependencies = [
++ "getrandom 0.3.3",
++ "js-sys",
++ "wasm-bindgen",
++]
++
+ [[package]]
+ name = "vcpkg"
+ version = "0.2.15"
+diff --git a/Cargo.toml b/Cargo.toml
+index bf5bd35..b692fcd 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,16 +1,17 @@
+ [package]
+-name = "onchain-agent-template"
++name = "agent-friend"
+ version = "0.1.0"
+ edition = "2024"
+-default-run = "onchain-agent-template"
++default-run = "agent-friend"
+ 
+ [dependencies]
+-chrono = "0.4"
++chrono = { version = "0.4", features = ["serde"] }
+ tokio = { version = "1", features = ["full"] }
+ reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres"] }
++sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "chrono", "json"] }
++clap = { version = "4.4", features = ["derive"] }
+ dotenv = "0.15"
+ anyhow = "1"
+ # Ethereum dependencies
+@@ -19,4 +20,6 @@ rand = "0.8"
+ hex = "0.4"
+ lazy_static = "1.4"
+ regex = "1.10.2"
++uuid = { version = "1.4", features = ["v4"] }
++urlencoding = "2.1.3"
+ 
+diff --git a/README.md b/README.md
+index e24d2f3..7f93e8e 100644
+--- a/README.md
++++ b/README.md
+@@ -1,14 +1,20 @@
+-# Onchain AI Agent Template
++# Agent Friend - Customizable DeFi Trading AI Agent
+ 
+-A Rust-based AI agent template that can perform both on-chain and off-chain operations, built with Tokio and Anthropic's Claude API.
++A customizable AI agent for DeFi trading and strategy management, built with Rust, Tokio, and Anthropic's Claude API. This agent helps users execute trading strategies, manage yield positions, and analyze on-chain data based on personalized knowledge and strategies.
+ 
+ ## Features
+ 
+-- 🤖 Basic chat interface with Claude AI
+-- 🎭 Customizable agent personality
+-- 💾 PostgreSQL database integration for message history
+-- 🛠️ Tool integration for external actions
+-- ⛓️ Ethereum blockchain integration (wallet generation, balance checks, transactions)
++- 🤖 Intelligent chat interface with Claude AI
++- 🧠 Customizable agent personality, knowledge, and strategies
++- 📈 Real-time token price tracking via multiple data sources
++- 📊 Historical price analysis for informed trading decisions
++- 💹 Customizable trading strategies for any token pair
++- 💰 Portfolio management and wallet integration
++- 🔍 Market trend analysis and trading recommendations
++- 💾 PostgreSQL database integration for message, strategy, and knowledge storage
++- ⛓️ Multi-chain support for trading operations
++- 🔎 Deep research capabilities with EXA API integration
++- 📝 Planning mode for step-by-step strategy execution
+ 
+ ## Architecture
+ 
+@@ -17,34 +23,47 @@ The project is structured into several key modules:
+ ```
+ agent-friend/
+ ├── src/
+-│   ├── main.rs          # Entry point and main loop
+-│   ├── anthropic.rs     # Claude API integration
+-│   ├── personality.rs   # Personality customization
+-│   ├── db.rs            # Database operations
+-│   ├── tools.rs         # Tool implementations
+-│   └── bin/             # Additional binaries
++│   ├── main.rs              # Entry point and main loop
++│   ├── lib.rs               # Library exports and module organization
++│   ├── anthropic.rs         # Claude API integration
++│   ├── agent_customizer.rs  # Agent customization functionality
++│   ├── data_source.rs       # Data source integrations
++│   ├── db.rs                # Database operations
++│   └── bin/                 # Additional binaries
++│       └── agent_customizer_cli.rs # CLI for agent customization
+ ├── assets/
+-│   └── personality.json # Agent personality configuration
++│   ├── personality.json     # Agent personality configuration
++│   ├── data_sources/        # Data source configurations
++│   └── knowledge/           # Knowledge base files (migrating to DB)
+ ├── migrations/
+-│   └── *.sql            # Database migration files
++│   ├── 20250816175200_create_messages.sql    # Messages table
++│   ├── 20250913131600_create_strategies_table.sql # Strategies table
++│   ├── 20250913131700_create_knowledge_table.sql  # Knowledge table
++│   └── 20250913131800_create_users_table.sql      # Users table
++├── examples/
++│   └── agent_customization.json # Example customization file
+ ├── .env.example         # Example environment variables
+ └── Cargo.toml           # Project dependencies
+ ```
+ 
+ ### Core Components
+ 
+-1. **Main Loop** (`main.rs`): Handles user input/output and orchestrates the agent's components
+-2. **Anthropic Integration** (`anthropic.rs`): Manages communication with Claude API
+-3. **Personality System** (`personality.rs`): Loads and applies personality traits to the agent
+-4. **Database Layer** (`db.rs`): Stores conversation history in PostgreSQL
+-5. **Tools System** (`tools.rs`): Implements external functionalities like weather info and Ethereum operations
++1. **Main Loop** (`main.rs`): Handles user input/output, command processing, and orchestrates the agent's components
++2. **Library Exports** (`lib.rs`): Organizes module exports and provides a clean API for the project
++3. **Anthropic Integration** (`anthropic.rs`): Manages communication with Claude API
++4. **Agent Customizer** (`agent_customizer.rs`): Provides functionality for customizing agent personality, knowledge, and strategies
++5. **Data Source Integration** (`data_source.rs`): Manages connections to external data sources like CoinGecko and 1inch
++6. **Database Layer** (`db.rs`): Stores conversation history, user data, strategies, and knowledge in PostgreSQL
++7. **CLI Tool** (`bin/agent_customizer_cli.rs`): Command-line interface for managing agent customizations
+ 
+ ## Prerequisites
+ 
+ - Rust and Cargo
+ - PostgreSQL database
+ - Anthropic API key
+-- Ethereum RPC URL (for blockchain features)
++- Base Sepolia RPC URL (for blockchain interactions)
++- Private key for a wallet with Base Sepolia ETH and USDC
++- CoinGecko API access (free tier works for basic usage)
+ 
+ ## Setup Instructions
+ 
+@@ -66,7 +85,10 @@ cp .env.example .env
+ Edit the `.env` file to include:
+ - Your Anthropic API key (get it from [Anthropic Console](https://console.anthropic.com/settings/keys))
+ - PostgreSQL database connection string
+-- Ethereum RPC URL (e.g., Sepolia testnet)
++- Base Sepolia RPC URL (e.g., https://sepolia.base.org)
++- Your wallet's private key (for trading operations)
++- 1inch API key (for DEX aggregation)
++- EXA API key (for deep research capabilities)
+ 
+ ### 3. Set up the database
+ 
+@@ -96,32 +118,123 @@ cargo run
+ 
+ ## Usage
+ 
+-Once running, you can interact with the agent via the command line:
++Once running, you can interact with the Aero trading agent via the command line:
+ 
++### General Interaction
+ - Type messages and press Enter to send them to the agent
+-- The agent will respond based on its personality and capabilities
+-- Use natural language to request actions like "What's the weather in Tokyo?" or "Generate a new Ethereum wallet"
++- The agent will respond based on its trading-focused personality
+ - Type 'exit' to quit
+ 
+-## Ethereum Features
++### Price Commands
++Use these commands to check Aerodrome token prices:
+ 
+-The agent can:
+-- Generate new Ethereum wallets
+-- Check ETH balances
+-- Send ETH transactions (on Sepolia testnet by default)
++```
++/price                      - Get current AERO price
++/price history              - Get yesterday's AERO price
++/price history DD-MM-YYYY   - Get AERO price on specific date
++```
++
++### Trading Commands
++Use these commands to manage your AERO/USDC trading:
++
++```
++/trade help                 - Show available trading commands
++/trade balance              - Check your AERO and USDC balances
++/trade buy [amount]         - Buy AERO with specified USDC amount
++/trade sell [amount]        - Sell specified amount of AERO for USDC
++/trade analyze              - Get trading recommendations based on price analysis
++```
++
++## Aerodrome Trading Features
++
++The Aero agent provides these specialized trading capabilities:
++
++### Price Tracking
++- Real-time price monitoring of Aerodrome token
++- Historical price data retrieval and analysis
++- Price trend identification for optimal entry/exit points
++
++### Trading Strategy
++- Automated market analysis based on price movements
++- Recommendations for buying when prices are low
++- Suggestions for taking profits when prices are high
++- Dollar-cost averaging strategy implementation
++
++### Portfolio Management
++- AERO and USDC balance tracking
++- Position sizing recommendations
++- Risk management through partial profit-taking
++- Performance tracking over time
++
++## Agent Customization Tool
++
++The project includes a powerful agent customization tool that allows you to personalize your DeFi trading assistant with custom strategies and knowledge.
++
++### Using the Agent Customizer CLI
++
++```bash
++# Create or update an agent with strategies and knowledge from a JSON file
++cargo run --bin agent_customizer_cli customize --input-file examples/agent_customization.json
++
++# Get an agent's profile
++cargo run --bin agent_customizer_cli get-profile --username defi_trader --output profile.json
++
++# Search for strategies and knowledge
++cargo run --bin agent_customizer_cli search --username defi_trader --query "arbitrage" --output search_results.json
++
++# Import strategies and knowledge from JSON files in directories
++cargo run --bin agent_customizer_cli import --username defi_trader --wallet "0x123..." --strategies-dir ./strategies --knowledge-dir ./knowledge
++```
++
++### Customization JSON Format
++
++The agent customization JSON file has the following structure:
++
++```json
++{
++  "username": "your_username",
++  "wallet_address": "optional_wallet_address",
++  "strategies": [
++    {
++      "strategy_id": "unique_strategy_id",
++      "name": "Strategy Name",
++      "category": "trading|yield|risk_management",
++      "description": "Strategy description",
++      "risk_level": "Low|Medium|High",
++      "tags": ["tag1", "tag2"],
++      "steps": ["Step 1", "Step 2", "Step 3"],
++      "requirements": ["Requirement 1", "Requirement 2"],
++      "expected_returns": {
++        "min": 0.5,
++        "max": 2.0,
++        "timeframe": "daily|monthly|yearly|per_trade"
++      },
++      "author": "Author Name",
++      "version": "1.0.0"
++    }
++  ],
++  "knowledge": [
++    {
++      "source_id": "unique_knowledge_id",
++      "content": "Markdown content with knowledge information",
++      "tags": ["tag1", "tag2"]
++    }
++  ]
++}
++```
+ 
+-Example commands:
+-- "Generate a new Ethereum wallet"
+-- "Check the balance of 0x123..."
+-- "Send 0.1 ETH from 0x123... to 0x456..."
++See the `examples/agent_customization.json` file for a complete example.
+ 
+-## Extending the Agent
++## Extending the Agent Friend
+ 
+-You can extend this template by:
+-- Adding new tools in `tools.rs`
+-- Modifying the personality in `assets/personality.json`
+-- Adding more blockchain capabilities
+-- Creating a web or mobile interface
++You can extend this agent by:
++- Adding more data sources in `data_source.rs`
++- Creating new trading strategies in the database
++- Implementing additional knowledge sources
++- Enhancing the agent personality with more capabilities
++- Creating a web dashboard for visualizing trading performance
++- Implementing automated trading based on predefined rules
++- Adding notifications for price alerts and trade executions
+ 
+ ## License
+ 
+diff --git a/assets/personality.json b/assets/personality.json
+deleted file mode 100644
+index c14b186..0000000
+--- a/assets/personality.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-    "name": "Aero",
+-    "role": "AI research companion",
+-    "style": {
+-      "tone": "friendly",
+-      "formality": "casual",
+-      "domain_focus": ["blockchain", "rust", "defi"]
+-    },
+-    "rules": [
+-      "Always explain reasoning in clear steps.",
+-      "If you don't know something, say so honestly.",
+-      "Keep responses concise but informative."
+-    ]
+-  }
+-  
+\ No newline at end of file
+diff --git a/src/db.rs b/src/db.rs
+index ee7dcf8..b7ea8a1 100644
+--- a/src/db.rs
++++ b/src/db.rs
+@@ -1,4 +1,61 @@
+-use sqlx::{Pool, Postgres};
++use serde::{Deserialize, Serialize};
++use sqlx::{Pool, Postgres, types::JsonValue};
++use std::collections::HashMap;
++use chrono;
++
++#[derive(Debug, Serialize, Deserialize)]
++pub struct User {
++    pub id: i32,
++    pub username: String,
++    pub wallet_address: Option<String>,
++    pub created_at: chrono::DateTime<chrono::Utc>,
++    pub updated_at: chrono::DateTime<chrono::Utc>,
++}
++
++#[derive(Debug, Serialize, Deserialize)]
++pub struct Strategy {
++    pub id: i32,
++    pub user_id: i32,
++    pub strategy_id: String,
++    pub name: String,
++    pub category: String,
++    pub description: String,
++    pub risk_level: String,
++    pub tags: Vec<String>,
++    pub steps: Vec<String>,
++    pub requirements: Vec<String>,
++    pub expected_returns: JsonValue,
++    pub created_at: chrono::DateTime<chrono::Utc>,
++    pub updated_at: chrono::DateTime<chrono::Utc>,
++    pub author: String,
++    pub version: String,
++}
++
++#[derive(Debug, Serialize, Deserialize)]
++pub struct Knowledge {
++    pub id: i32,
++    pub user_id: i32,
++    pub source_id: String,
++    pub content: String,
++    pub tags: Vec<String>,
++    pub created_at: chrono::DateTime<chrono::Utc>,
++    pub updated_at: chrono::DateTime<chrono::Utc>,
++}
++
++#[derive(Debug, Serialize, Deserialize)]
++pub struct DataSource {
++    pub id: i32,
++    pub user_id: i32,
++    pub source_id: String,
++    pub name: String,
++    pub description: String,
++    pub source_type: String,
++    pub refresh_interval_minutes: i32,
++    pub config: JsonValue,
++    pub created_at: chrono::DateTime<chrono::Utc>,
++    pub updated_at: chrono::DateTime<chrono::Utc>,
++    pub last_refresh: Option<chrono::DateTime<chrono::Utc>>,
++}
+ 
+ pub async fn get_db_pool() -> Option<Pool<Postgres>> {
+     match std::env::var("DATABASE_URL") {
+@@ -21,6 +78,7 @@ pub async fn get_db_pool() -> Option<Pool<Postgres>> {
+     }
+ }
+ 
++// Message functions
+ pub async fn save_message(pool: &Pool<Postgres>, role: &str, content: &str) -> sqlx::Result<()> {
+     sqlx::query("INSERT INTO messages (role, content) VALUES ($1, $2)")
+         .bind(role)
+@@ -30,3 +88,743 @@ pub async fn save_message(pool: &Pool<Postgres>, role: &str, content: &str) -> s
+     Ok(())
+ }
+ 
++pub async fn get_messages(pool: &Pool<Postgres>, limit: i64) -> sqlx::Result<Vec<(String, String)>> {
++    let rows = sqlx::query!("SELECT role, content FROM messages ORDER BY created_at DESC LIMIT $1", limit)
++        .fetch_all(pool)
++        .await?;
++    
++    Ok(rows.into_iter().map(|row| (row.role, row.content)).collect())
++}
++
++// User functions
++pub async fn create_user(pool: &Pool<Postgres>, username: &str, wallet_address: Option<&str>) -> sqlx::Result<User> {
++    let wallet = wallet_address.map(|w| w.to_string());
++    
++    let user = sqlx::query!("INSERT INTO users (username, wallet_address) VALUES ($1, $2) RETURNING id, username, wallet_address, created_at, updated_at",
++        username,
++        wallet
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(User {
++        id: user.id,
++        username: user.username,
++        wallet_address: user.wallet_address,
++        created_at: user.created_at,
++        updated_at: user.updated_at,
++    })
++}
++
++pub async fn get_user_by_username(pool: &Pool<Postgres>, username: &str) -> sqlx::Result<Option<User>> {
++    let user = sqlx::query!("SELECT id, username, wallet_address, created_at, updated_at FROM users WHERE username = $1",
++        username
++    )
++    .fetch_optional(pool)
++    .await?;
++    
++    Ok(user.map(|u| User {
++        id: u.id,
++        username: u.username,
++        wallet_address: u.wallet_address,
++        created_at: u.created_at,
++        updated_at: u.updated_at,
++    }))
++}
++
++pub async fn get_user_by_id(pool: &Pool<Postgres>, user_id: i32) -> sqlx::Result<Option<User>> {
++    let user = sqlx::query!("SELECT id, username, wallet_address, created_at, updated_at FROM users WHERE id = $1",
++        user_id
++    )
++    .fetch_optional(pool)
++    .await?;
++    
++    Ok(user.map(|u| User {
++        id: u.id,
++        username: u.username,
++        wallet_address: u.wallet_address,
++        created_at: u.created_at,
++        updated_at: u.updated_at,
++    }))
++}
++
++pub async fn update_user_wallet(pool: &Pool<Postgres>, user_id: i32, wallet_address: &str) -> sqlx::Result<User> {
++    let user = sqlx::query!("UPDATE users SET wallet_address = $1, updated_at = now() WHERE id = $2 
++           RETURNING id, username, wallet_address, created_at, updated_at",
++        wallet_address,
++        user_id
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(User {
++        id: user.id,
++        username: user.username,
++        wallet_address: user.wallet_address,
++        created_at: user.created_at,
++        updated_at: user.updated_at,
++    })
++}
++
++// Strategy functions
++pub async fn create_strategy(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    strategy_id: &str,
++    name: &str,
++    category: &str,
++    description: &str,
++    risk_level: &str,
++    tags: &[String],
++    steps: &[String],
++    requirements: &[String],
++    expected_returns: JsonValue,
++    author: &str,
++    version: &str
++) -> sqlx::Result<Strategy> {
++    let strategy = sqlx::query!("INSERT INTO strategies 
++           (user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, author, version) 
++           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
++           RETURNING id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version",
++        user_id,
++        strategy_id,
++        name,
++        category,
++        description,
++        risk_level,
++        tags as _,
++        steps as _,
++        requirements as _,
++        expected_returns,
++        author,
++        version
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(Strategy {
++        id: strategy.id,
++        user_id: strategy.user_id,
++        strategy_id: strategy.strategy_id,
++        name: strategy.name,
++        category: strategy.category,
++        description: strategy.description,
++        risk_level: strategy.risk_level,
++        tags: strategy.tags,
++        steps: strategy.steps,
++        requirements: strategy.requirements,
++        expected_returns: strategy.expected_returns,
++        created_at: strategy.created_at,
++        updated_at: strategy.updated_at,
++        author: strategy.author,
++        version: strategy.version,
++    })
++}
++
++pub async fn get_strategies_by_user_id(pool: &Pool<Postgres>, user_id: i32) -> sqlx::Result<Vec<Strategy>> {
++    let rows = sqlx::query!("SELECT id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version 
++           FROM strategies 
++           WHERE user_id = $1",
++        user_id
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let strategies = rows.into_iter().map(|row| Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    }).collect();
++    
++    Ok(strategies)
++}
++
++pub async fn get_strategy_by_id(pool: &Pool<Postgres>, user_id: i32, strategy_id: &str) -> sqlx::Result<Option<Strategy>> {
++    let row = sqlx::query!("SELECT id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version 
++           FROM strategies 
++           WHERE user_id = $1 AND strategy_id = $2",
++        user_id,
++        strategy_id
++    )
++    .fetch_optional(pool)
++    .await?;
++    
++    Ok(row.map(|row| Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    }))
++}
++
++pub async fn get_strategies_by_category(pool: &Pool<Postgres>, user_id: i32, category: &str) -> sqlx::Result<Vec<Strategy>> {
++    let rows = sqlx::query!("SELECT id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version 
++           FROM strategies 
++           WHERE user_id = $1 AND category = $2",
++        user_id,
++        category
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let strategies = rows.into_iter().map(|row| Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    }).collect();
++    
++    Ok(strategies)
++}
++
++pub async fn get_strategies_by_tags(pool: &Pool<Postgres>, user_id: i32, tag: &str) -> sqlx::Result<Vec<Strategy>> {
++    let rows = sqlx::query!("SELECT id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version 
++           FROM strategies 
++           WHERE user_id = $1 AND $2 = ANY(tags)",
++        user_id,
++        tag
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let strategies = rows.into_iter().map(|row| Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    }).collect();
++    
++    Ok(strategies)
++}
++
++pub async fn update_strategy(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    strategy_id: &str,
++    name: &str,
++    category: &str,
++    description: &str,
++    risk_level: &str,
++    tags: &[String],
++    steps: &[String],
++    requirements: &[String],
++    expected_returns: JsonValue,
++    author: &str,
++    version: &str
++) -> sqlx::Result<Strategy> {
++    let row = sqlx::query!("UPDATE strategies 
++           SET name = $3, category = $4, description = $5, risk_level = $6, 
++               tags = $7, steps = $8, requirements = $9, expected_returns = $10, 
++               author = $11, version = $12, updated_at = now() 
++           WHERE user_id = $1 AND strategy_id = $2 
++           RETURNING id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version",
++        user_id,
++        strategy_id,
++        name,
++        category,
++        description,
++        risk_level,
++        tags as _,
++        steps as _,
++        requirements as _,
++        expected_returns,
++        author,
++        version
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    })
++}
++
++pub async fn delete_strategy(pool: &Pool<Postgres>, user_id: i32, strategy_id: &str) -> sqlx::Result<()> {
++    sqlx::query!("DELETE FROM strategies WHERE user_id = $1 AND strategy_id = $2", user_id, strategy_id)
++        .execute(pool)
++        .await?;
++    
++    Ok(())
++}
++
++// Knowledge functions
++pub async fn create_knowledge(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    source_id: &str,
++    content: &str,
++    tags: &[String]
++) -> sqlx::Result<Knowledge> {
++    let row = sqlx::query!("INSERT INTO knowledge 
++           (user_id, source_id, content, tags) 
++           VALUES ($1, $2, $3, $4) 
++           RETURNING id, user_id, source_id, content, tags, created_at, updated_at",
++        user_id,
++        source_id,
++        content,
++        tags as _
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    })
++}
++
++pub async fn get_knowledge_by_user_id(pool: &Pool<Postgres>, user_id: i32) -> sqlx::Result<Vec<Knowledge>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, content, tags, created_at, updated_at 
++           FROM knowledge 
++           WHERE user_id = $1",
++        user_id
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let knowledge_items = rows.into_iter().map(|row| Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    }).collect();
++    
++    Ok(knowledge_items)
++}
++
++pub async fn get_knowledge_by_source_id(pool: &Pool<Postgres>, user_id: i32, source_id: &str) -> sqlx::Result<Option<Knowledge>> {
++    let row = sqlx::query!("SELECT id, user_id, source_id, content, tags, created_at, updated_at 
++           FROM knowledge 
++           WHERE user_id = $1 AND source_id = $2",
++        user_id,
++        source_id
++    )
++    .fetch_optional(pool)
++    .await?;
++    
++    Ok(row.map(|row| Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    }))
++}
++
++pub async fn get_knowledge_by_tags(pool: &Pool<Postgres>, user_id: i32, tag: &str) -> sqlx::Result<Vec<Knowledge>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, content, tags, created_at, updated_at 
++           FROM knowledge 
++           WHERE user_id = $1 AND $2 = ANY(tags)",
++        user_id,
++        tag
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let knowledge_items = rows.into_iter().map(|row| Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    }).collect();
++    
++    Ok(knowledge_items)
++}
++
++pub async fn update_knowledge(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    source_id: &str,
++    content: &str,
++    tags: &[String]
++) -> sqlx::Result<Knowledge> {
++    let row = sqlx::query!("UPDATE knowledge 
++           SET content = $3, tags = $4, updated_at = now() 
++           WHERE user_id = $1 AND source_id = $2 
++           RETURNING id, user_id, source_id, content, tags, created_at, updated_at",
++        user_id,
++        source_id,
++        content,
++        tags as _
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    })
++}
++
++pub async fn delete_knowledge(pool: &Pool<Postgres>, user_id: i32, source_id: &str) -> sqlx::Result<()> {
++    sqlx::query!("DELETE FROM knowledge WHERE user_id = $1 AND source_id = $2", user_id, source_id)
++        .execute(pool)
++        .await?;
++    
++    Ok(())
++}
++
++// Search functions for both strategies and knowledge
++pub async fn search_strategies_by_text(pool: &Pool<Postgres>, user_id: i32, search_text: &str) -> sqlx::Result<Vec<Strategy>> {
++    let rows = sqlx::query!("SELECT id, user_id, strategy_id, name, category, description, risk_level, tags, steps, requirements, expected_returns, created_at, updated_at, author, version 
++           FROM strategies 
++           WHERE user_id = $1 AND 
++                 (name ILIKE $2 OR description ILIKE $2 OR 
++                  EXISTS (SELECT 1 FROM unnest(steps) step WHERE step ILIKE $2) OR 
++                  EXISTS (SELECT 1 FROM unnest(requirements) req WHERE req ILIKE $2))",
++        user_id,
++        format!("%{}%", search_text)
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let strategies = rows.into_iter().map(|row| Strategy {
++        id: row.id,
++        user_id: row.user_id,
++        strategy_id: row.strategy_id,
++        name: row.name,
++        category: row.category,
++        description: row.description,
++        risk_level: row.risk_level,
++        tags: row.tags,
++        steps: row.steps,
++        requirements: row.requirements,
++        expected_returns: row.expected_returns,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        author: row.author,
++        version: row.version,
++    }).collect();
++    
++    Ok(strategies)
++}
++
++pub async fn search_knowledge_by_text(pool: &Pool<Postgres>, user_id: i32, search_text: &str) -> sqlx::Result<Vec<Knowledge>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, content, tags, created_at, updated_at 
++           FROM knowledge 
++           WHERE user_id = $1 AND 
++                 (source_id ILIKE $2 OR content ILIKE $2)",
++        user_id,
++        format!("%{}%", search_text)
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let knowledge_items = rows.into_iter().map(|row| Knowledge {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        content: row.content,
++        tags: row.tags,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++    }).collect();
++    
++    Ok(knowledge_items)
++}
++
++// Data source functions
++pub async fn create_data_source(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    source_id: &str,
++    name: &str,
++    description: &str,
++    source_type: &str,
++    refresh_interval_minutes: i32,
++    config: JsonValue,
++    last_refresh: Option<chrono::DateTime<chrono::Utc>>
++) -> sqlx::Result<DataSource> {
++    let row = sqlx::query!("INSERT INTO data_sources 
++           (user_id, source_id, name, description, source_type, refresh_interval_minutes, config, last_refresh) 
++           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
++           RETURNING id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh",
++        user_id,
++        source_id,
++        name,
++        description,
++        source_type,
++        refresh_interval_minutes,
++        config,
++        last_refresh
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    })
++}
++
++pub async fn get_data_sources_by_user_id(pool: &Pool<Postgres>, user_id: i32) -> sqlx::Result<Vec<DataSource>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh 
++           FROM data_sources 
++           WHERE user_id = $1",
++        user_id
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let data_sources = rows.into_iter().map(|row| DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    }).collect();
++    
++    Ok(data_sources)
++}
++
++pub async fn get_data_source_by_id(pool: &Pool<Postgres>, user_id: i32, source_id: &str) -> sqlx::Result<Option<DataSource>> {
++    let row = sqlx::query!("SELECT id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh 
++           FROM data_sources 
++           WHERE user_id = $1 AND source_id = $2",
++        user_id,
++        source_id
++    )
++    .fetch_optional(pool)
++    .await?;
++    
++    Ok(row.map(|row| DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    }))
++}
++
++pub async fn get_data_sources_by_type(pool: &Pool<Postgres>, user_id: i32, source_type: &str) -> sqlx::Result<Vec<DataSource>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh 
++           FROM data_sources 
++           WHERE user_id = $1 AND source_type = $2",
++        user_id,
++        source_type
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let data_sources = rows.into_iter().map(|row| DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    }).collect();
++    
++    Ok(data_sources)
++}
++
++pub async fn update_data_source(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    source_id: &str,
++    name: &str,
++    description: &str,
++    source_type: &str,
++    refresh_interval_minutes: i32,
++    config: JsonValue
++) -> sqlx::Result<DataSource> {
++    let row = sqlx::query!("UPDATE data_sources 
++           SET name = $3, description = $4, source_type = $5, refresh_interval_minutes = $6, config = $7, updated_at = now() 
++           WHERE user_id = $1 AND source_id = $2 
++           RETURNING id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh",
++        user_id,
++        source_id,
++        name,
++        description,
++        source_type,
++        refresh_interval_minutes,
++        config
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    })
++}
++
++pub async fn update_data_source_last_refresh(
++    pool: &Pool<Postgres>, 
++    user_id: i32,
++    source_id: &str,
++    last_refresh: chrono::DateTime<chrono::Utc>
++) -> sqlx::Result<DataSource> {
++    let row = sqlx::query!("UPDATE data_sources 
++           SET last_refresh = $3, updated_at = now() 
++           WHERE user_id = $1 AND source_id = $2 
++           RETURNING id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh",
++        user_id,
++        source_id,
++        last_refresh
++    )
++    .fetch_one(pool)
++    .await?;
++    
++    Ok(DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    })
++}
++
++pub async fn delete_data_source(pool: &Pool<Postgres>, user_id: i32, source_id: &str) -> sqlx::Result<()> {
++    sqlx::query!("DELETE FROM data_sources WHERE user_id = $1 AND source_id = $2", user_id, source_id)
++        .execute(pool)
++        .await?;
++    
++    Ok(())
++}
++
++pub async fn search_data_sources_by_text(pool: &Pool<Postgres>, user_id: i32, search_text: &str) -> sqlx::Result<Vec<DataSource>> {
++    let rows = sqlx::query!("SELECT id, user_id, source_id, name, description, source_type, refresh_interval_minutes, config, created_at, updated_at, last_refresh 
++           FROM data_sources 
++           WHERE user_id = $1 AND 
++                 (source_id ILIKE $2 OR name ILIKE $2 OR description ILIKE $2)",
++        user_id,
++        format!("%{}%", search_text)
++    )
++    .fetch_all(pool)
++    .await?;
++    
++    let data_sources = rows.into_iter().map(|row| DataSource {
++        id: row.id,
++        user_id: row.user_id,
++        source_id: row.source_id,
++        name: row.name,
++        description: row.description,
++        source_type: row.source_type,
++        refresh_interval_minutes: row.refresh_interval_minutes,
++        config: row.config,
++        created_at: row.created_at,
++        updated_at: row.updated_at,
++        last_refresh: row.last_refresh,
++    }).collect();
++    
++    Ok(data_sources)
++}
+diff --git a/src/main.rs b/src/main.rs
+index 566e8af..303c4b7 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -2,22 +2,81 @@ mod anthropic;
+ mod db;
+ mod personality;
+ mod tools;
++mod price_fetcher;
++mod trading;
++mod knowledge_manager;
++mod prompt_handler;
++mod strategy_manager;
++mod data_source;
+ 
+ use db::{get_db_pool, save_message};
+ use anthropic::call_anthropic_with_personality;
+-use personality::load_personality;
++use personality::{load_personality, save_personality, KnowledgeSource, Protocol, ApiIntegration};
+ use tools::get_tools_as_json;
+ use std::io::{self, Write};
+-use std::path::Path;
++use std::path::{Path, PathBuf};
++use trading::TradingClient;
++use std::str::FromStr;
++use knowledge_manager::{KnowledgeManager, interactive_add_knowledge};
++use prompt_handler::PromptHandler;
++use strategy_manager::{StrategyManager, interactive_add_strategy};
++use data_source::{DataSourceManager, interactive_add_data_source};
++use std::time::Duration;
++use tokio::time;
++use std::sync::Arc;
++use tokio::sync::Mutex;
+ 
+ #[tokio::main]
+ async fn main() -> anyhow::Result<()> {
+     dotenv::dotenv().ok();
+     let pool = get_db_pool().await;
+     
++    // Create necessary directories if they don't exist
++    let knowledge_dir = Path::new("assets/knowledge");
++    let strategies_dir = Path::new("assets/strategies");
++    let data_sources_dir = Path::new("assets/data_sources");
++    
++    for dir in &[knowledge_dir, strategies_dir, data_sources_dir] {
++        if !dir.exists() {
++            std::fs::create_dir_all(dir)?;
++        }
++    }
++    
++    // Initialize knowledge manager
++    let mut knowledge_manager = match KnowledgeManager::new(knowledge_dir) {
++        Ok(km) => km,
++        Err(e) => {
++            println!("Failed to initialize knowledge manager: {}", e);
++            return Err(anyhow::anyhow!("Failed to initialize knowledge manager"));
++        }
++    };
++    
++    // Initialize strategy manager
++    let mut strategy_manager = match StrategyManager::new(strategies_dir) {
++        Ok(sm) => sm,
++        Err(e) => {
++            println!("Failed to initialize strategy manager: {}", e);
++            return Err(anyhow::anyhow!("Failed to initialize strategy manager"));
++        }
++    };
++    
++    // Initialize data source manager
++    let mut data_source_manager = match DataSourceManager::new(data_sources_dir) {
++        Ok(dsm) => dsm,
++        Err(e) => {
++            println!("Failed to initialize data source manager: {}", e);
++            return Err(anyhow::anyhow!("Failed to initialize data source manager"));
++        }
++    };
++    
++    // Initialize data source plugins
++    if let Err(e) = data_source_manager.initialize_plugins() {
++        println!("Warning: Failed to initialize some data source plugins: {}", e);
++    }
++    
+     // Load personality
+     let personality_path = Path::new("assets/personality.json");
+-    let personality = match load_personality(personality_path.to_str().unwrap()) {
++    let mut personality = match load_personality(personality_path.to_str().unwrap()) {
+         Ok(p) => {
+             println!("Loaded personality: {} - {}", p.name, p.role);
+             p
+@@ -28,6 +87,50 @@ async fn main() -> anyhow::Result<()> {
+         }
+     };
+     
++    // Initialize prompt handler
++    let mut prompt_handler = PromptHandler::new();
++    if let Err(e) = prompt_handler.initialize(&personality) {
++        println!("Failed to initialize prompt handler: {}", e);
++        return Err(anyhow::anyhow!("Failed to initialize prompt handler"));
++    }
++    
++    // Add knowledge sources from personality to knowledge manager
++    if let Err(e) = knowledge_manager.add_sources_from_personality(&personality) {
++        println!("Warning: Failed to add knowledge sources from personality: {}", e);
++    }
++    
++    // Import strategies to personality
++    if let Err(e) = strategy_manager.import_strategies_to_personality(&mut personality) {
++        println!("Warning: Failed to import strategies to personality: {}", e);
++    }
++    
++    // Start a background task to refresh data sources periodically
++    let data_source_manager_arc = Arc::new(Mutex::new(data_source_manager));
++    let data_source_manager_clone = Arc::clone(&data_source_manager_arc);
++    
++    tokio::spawn(async move {
++        loop {
++            // Wait for 5 minutes
++            time::sleep(Duration::from_secs(300)).await;
++            
++            // Refresh data sources
++            let mut manager = data_source_manager_clone.lock().await;
++            match manager.refresh_all_sources().await {
++                Ok(results) => {
++                    if !results.is_empty() {
++                        println!("Refreshed {} data sources", results.len());
++                    }
++                },
++                Err(e) => {
++                    eprintln!("Failed to refresh data sources: {}", e);
++                }
++            }
++        }
++    });
++    
++    // Get the data source manager from the Arc<Mutex<>>
++    let mut data_source_manager = data_source_manager_arc.lock().await;
++    
+     // Load available tools
+     match get_tools_as_json() {
+         Ok(tools_json) => {
+@@ -40,6 +143,13 @@ async fn main() -> anyhow::Result<()> {
+     
+     println!("Welcome to Agent Friend! I'm {}, your {}.", personality.name, personality.role);
+     println!("Type 'exit' to quit.");
++    println!("Special commands:");
++    println!("  /trade - Trading operations");
++    println!("  /price - Check token prices");
++    println!("  /knowledge - Knowledge management");
++    println!("  /personality - Personality management");
++    println!("  /strategy - Strategy management");
++    println!("  /datasource - Data source management");
+     
+     loop {
+         // Prompt for user input
+@@ -62,6 +172,46 @@ async fn main() -> anyhow::Result<()> {
+             continue;
+         }
+         
++        // Handle trading commands
++        if user_input.starts_with("/trade") {
++            handle_trade_command(user_input).await?;
++            continue;
++        }
++        
++        // Handle price check commands
++        if user_input.starts_with("/price") {
++            handle_price_command(user_input).await?;
++            continue;
++        }
++        
++        // Handle knowledge management commands
++        if user_input.starts_with("/knowledge") {
++            handle_knowledge_command(user_input, &mut knowledge_manager).await?;
++            continue;
++        }
++        
++        // Handle personality management commands
++        if user_input.starts_with("/personality") {
++            handle_personality_command(user_input, &mut personality, personality_path.to_str().unwrap()).await?;
++            
++            // Reinitialize prompt handler with updated personality
++            prompt_handler = PromptHandler::new();
++            prompt_handler.initialize(&personality)?;
++            continue;
++        }
++        
++        // Handle strategy management commands
++        if user_input.starts_with("/strategy") {
++            handle_strategy_command(user_input, &mut strategy_manager, &mut personality, personality_path.to_str().unwrap()).await?;
++            continue;
++        }
++        
++        // Handle data source management commands
++        if user_input.starts_with("/datasource") {
++            handle_data_source_command(user_input, &mut data_source_manager).await?;
++            continue;
++        }
++        
+         // Save user message to database if pool is available
+         if let Some(pool) = &pool {
+             if let Err(e) = save_message(pool, "user", user_input).await {
+@@ -69,10 +219,13 @@ async fn main() -> anyhow::Result<()> {
+             }
+         }
+         
+-        // Get response from Claude with personality
++        // Get complete prompt with knowledge context
++        let complete_prompt = prompt_handler.get_complete_prompt(&knowledge_manager, user_input);
++        
++        // Get response from Claude with personality and knowledge context
+         print!("{} is thinking...", personality.name);
+         io::stdout().flush()?;
+-        let reply = call_anthropic_with_personality(user_input, Some(&personality)).await?;
++        let reply = call_anthropic_with_personality(&complete_prompt, Some(&personality)).await?;
+         println!("\r"); // Clear the "thinking" message
+         
+         // Save assistant message to database if pool is available
+@@ -88,3 +241,389 @@ async fn main() -> anyhow::Result<()> {
+     
+     Ok(())
+ }
++
++async fn handle_price_command(command: &str) -> anyhow::Result<()> {
++    let parts: Vec<&str> = command.split_whitespace().collect();
++    
++    if parts.len() == 1 || (parts.len() == 2 && parts[1] == "current") {
++        // Get current price
++        match price_fetcher::fetch_current_price().await {
++            Ok(price) => println!("Current AERO price: ${:.4}", price),
++            Err(e) => println!("Failed to fetch current price: {}", e),
++        }
++    } else if parts.len() >= 2 && parts[1] == "history" {
++        let date = if parts.len() >= 3 {
++            parts[2]
++        } else {
++            // Default to yesterday
++            let yesterday = chrono::Utc::now() - chrono::Duration::days(1);
++            &yesterday.format("%d-%m-%Y").to_string()
++        };
++        
++        match price_fetcher::fetch_historical_price(&date).await {
++            Ok(price) => println!("AERO price on {}: ${:.4}", date, price),
++            Err(e) => println!("Failed to fetch historical price: {}", e),
++        }
++    } else {
++        println!("Usage:\n/price - Get current price\n/price history [DD-MM-YYYY] - Get historical price");
++    }
++    
++    Ok(())
++}
++
++async fn handle_trade_command(command: &str) -> anyhow::Result<()> {
++    let parts: Vec<&str> = command.split_whitespace().collect();
++    
++    // Initialize trading client
++    let client = match TradingClient::new().await {
++        Ok(client) => client,
++        Err(e) => {
++            println!("Failed to initialize trading client: {}", e);
++            return Ok(());
++        }
++    };
++    
++    if parts.len() == 1 || parts[1] == "help" {
++        println!("Trading commands:
++/trade balance - Check your balances
++/trade analyze - Get trading recommendations and limit order suggestions
++/trade limit buy [amount] [price] - Create a limit buy order
++/trade limit sell [amount] [price] - Create a limit sell order
++/trade orders - List all open limit orders
++/trade cancel [order_id] - Cancel a limit order
++/trade check - Check and execute limit orders based on current price
++/trade swap [from_token] [to_token] [amount] [slippage] - Execute a swap using 1inch");
++    } else if parts[1] == "balance" {
++        // Get balances
++        match client.get_weth_balance().await {
++            Ok(balance) => println!("WETH balance: {:.6}", balance),
++            Err(e) => println!("Failed to get WETH balance: {}", e),
++        }
++        
++        match client.get_usdc_balance().await {
++            Ok(balance) => println!("USDC balance: {:.2}", balance),
++            Err(e) => println!("Failed to get USDC balance: {}", e),
++        }
++    } else if parts[1] == "limit" && parts.len() >= 5 {
++        // Handle limit orders
++        let order_type = match parts[2] {
++            "buy" => trading::OrderType::Buy,
++            "sell" => trading::OrderType::Sell,
++            _ => {
++                println!("Invalid order type. Use 'buy' or 'sell'.");
++                return Ok(());
++            }
++        };
++        
++        // Parse amount and price
++        let amount = match f64::from_str(parts[3]) {
++            Ok(val) => val,
++            Err(_) => {
++                println!("Invalid amount. Must be a number.");
++                return Ok(());
++            }
++        };
++        
++        let price = match f64::from_str(parts[4]) {
++            Ok(val) => val,
++            Err(_) => {
++                println!("Invalid price. Must be a number.");
++                return Ok(());
++            }
++        };
++        
++        // Create the limit order
++        match client.create_limit_order(order_type, amount, price).await {
++            Ok(result) => println!("{}", result),
++            Err(e) => println!("Failed to create limit order: {}", e),
++        }
++    } else if parts[1] == "orders" {
++        // List all open limit orders
++        match client.get_open_limit_orders().await {
++            Ok(orders) => {
++                if orders.is_empty() {
++                    println!("No open limit orders");
++                } else {
++                    println!("Open limit orders:");
++                    for order in orders {
++                        let order_type = match order.order_type {
++                            trading::OrderType::Buy => "Buy",
++                            trading::OrderType::Sell => "Sell",
++                        };
++                        println!("  - {} {:.4} tokens at ${:.4} (ID: {})", 
++                            order_type, order.amount, order.price, order.id);
++                    }
++                }
++            },
++            Err(e) => println!("Failed to get limit orders: {}", e),
++        }
++    } else if parts[1] == "cancel" && parts.len() >= 3 {
++        // Cancel a limit order
++        let order_id = parts[2];
++        match client.cancel_limit_order(order_id).await {
++            Ok(result) => println!("{}", result),
++            Err(e) => println!("Failed to cancel limit order: {}", e),
++        }
++    } else if parts[1] == "check" {
++        // Check and execute limit orders
++        match client.check_and_execute_limit_orders().await {
++            Ok(result) => println!("{}", result),
++            Err(e) => println!("Failed to check limit orders: {}", e),
++        }
++    } else if parts[1] == "analyze" {
++        // Get trading recommendations
++        match client.analyze_and_suggest_strategy().await {
++            Ok(strategy) => println!("{}", strategy),
++            Err(e) => println!("Failed to analyze trading strategy: {}", e),
++        }
++    } else if parts[1] == "swap" && parts.len() >= 5 {
++        // Execute a swap using 1inch
++        let from_token = parts[2];
++        let to_token = parts[3];
++        
++        // Parse amount
++        let amount = match f64::from_str(parts[4]) {
++            Ok(val) => val,
++            Err(_) => {
++                println!("Invalid amount. Must be a number.");
++                return Ok(());
++            }
++        };
++        
++        // Parse slippage (default to 1%)
++        let slippage = if parts.len() >= 6 {
++            match f32::from_str(parts[5]) {
++                Ok(val) => val,
++                Err(_) => {
++                    println!("Invalid slippage. Using default 1%.");
++                    1.0
++                }
++            }
++        } else {
++            1.0 // Default slippage
++        };
++        
++        // Get tokens to find decimals
++        match client.one_inch.get_tokens().await {
++            Ok(tokens) => {
++                let from_token_obj = tokens.tokens.values().find(|t| t.symbol.to_lowercase() == from_token.to_lowercase());
++                let to_token_obj = tokens.tokens.values().find(|t| t.symbol.to_lowercase() == to_token.to_lowercase());
++                
++                if let (Some(from), Some(to)) = (from_token_obj, to_token_obj) {
++                    println!("Executing swap: {} {} to {}", amount, from.symbol, to.symbol);
++                    
++                    // Execute the trade
++                    match client.execute_trade_strategy(
++                        &from.address,
++                        &to.address,
++                        amount,
++                        from.decimals,
++                        slippage
++                    ).await {
++                        Ok(swap) => {
++                            let from_amount = swap.from_amount.parse::<f64>().unwrap_or(0.0) / 10_f64.powi(from.decimals as i32);
++                            let to_amount = swap.to_amount.parse::<f64>().unwrap_or(0.0) / 10_f64.powi(to.decimals as i32);
++                            
++                            println!("Swap details:");
++                            println!("  From: {:.6} {}", from_amount, from.symbol);
++                            println!("  To: {:.6} {}", to_amount, to.symbol);
++                            println!("  Rate: 1 {} = {:.6} {}", from.symbol, to_amount / from_amount, to.symbol);
++                            println!("  Gas: {}", swap.tx.gas);
++                            println!("\nTransaction ready for submission. In a real implementation, this would be signed and sent.");
++                        },
++                        Err(e) => println!("Failed to execute swap: {}", e),
++                    }
++                } else {
++                    println!("Token not found. Please use valid token symbols.");
++                }
++            },
++            Err(e) => println!("Failed to get tokens: {}", e),
++        }
++    } else {
++        println!("Unknown trading command. Type '/trade help' for available commands.");
++    }
++    
++    Ok(())
++}
++
++/// Handle knowledge management commands
++async fn handle_knowledge_command(command: &str, knowledge_manager: &mut KnowledgeManager) -> anyhow::Result<()> {
++    let parts: Vec<&str> = command.split_whitespace().collect();
++    
++    if parts.len() == 1 || parts[1] == "help" {
++        println!("Knowledge management commands:
++/knowledge add - Add a new knowledge entry
++/knowledge list - List all knowledge entries
++/knowledge get [id] - Get a specific knowledge entry
++/knowledge delete [id] - Delete a knowledge entry");
++    } else if parts[1] == "add" {
++        interactive_add_knowledge(knowledge_manager).await?
++    } else if parts[1] == "list" {
++        // List all knowledge entries
++        println!("Knowledge entries:");
++        for (id, entry) in &knowledge_manager.entries {
++            println!("  - {} (tags: {})", id, entry.tags.join(", "));
++        }
++    } else if parts[1] == "get" && parts.len() >= 3 {
++        // Get a specific knowledge entry
++        let id = parts[2];
++        if let Some(entry) = knowledge_manager.get_entry(id) {
++            println!("Knowledge entry: {}", id);
++            println!("Tags: {}", entry.tags.join(", "));
++            println!("Created: {}", entry.created_at);
++            println!("Updated: {}", entry.updated_at);
++            println!("Content:\n{}", entry.content);
++        } else {
++            println!("Knowledge entry not found: {}", id);
++        }
++    } else if parts[1] == "delete" && parts.len() >= 3 {
++        // Delete a knowledge entry
++        let id = parts[2];
++        match knowledge_manager.delete_entry(id) {
++            Ok(_) => println!("Knowledge entry deleted: {}", id),
++            Err(e) => println!("Failed to delete knowledge entry: {}", e),
++        }
++    } else {
++        println!("Unknown knowledge command. Type '/knowledge help' for available commands.");
++    }
++    
++    Ok(())
++}
++
++/// Handle personality management commands
++async fn handle_personality_command(command: &str, personality: &mut Personality, path: &str) -> anyhow::Result<()> {
++    let parts: Vec<&str> = command.split_whitespace().collect();
++    
++    if parts.len() == 1 || parts[1] == "help" {
++        println!("Personality management commands:
++/personality info - Show personality information
++/personality add protocol [name] [chain] [description] - Add a new protocol
++/personality add api [name] [description] [endpoints] - Add a new API
++/personality add strategy [category] [strategy] - Add a new strategy
++/personality focus [protocol_name] - Set focus on a protocol
++/personality unfocus [protocol_name] - Remove focus from a protocol");
++    } else if parts[1] == "info" {
++        // Show personality information
++        println!("Personality: {} - {}", personality.name, personality.role);
++        println!("Style: {} and {}", personality.style.tone, personality.style.formality);
++        println!("Domain focus: {}", personality.style.domain_focus.join(", "));
++        
++        println!("\nRules:");
++        for rule in &personality.rules {
++            println!("  - {}", rule);
++        }
++        
++        println!("\nFocused protocols:");
++        let focused = personality.get_focused_protocols();
++        if focused.is_empty() {
++            println!("  None");
++        } else {
++            for protocol in focused {
++                println!("  - {} on {}: {}", protocol.name, protocol.chain, protocol.description);
++            }
++        }
++        
++        println!("\nAPIs:");
++        let apis = personality.get_apis();
++        if apis.is_empty() {
++            println!("  None");
++        } else {
++            for api in apis {
++                println!("  - {}: {} (endpoints: {})", api.name, api.description, api.endpoints.join(", "));
++            }
++        }
++        
++        println!("\nStrategies:");
++        for (category, strategies) in &personality.strategies {
++            println!("  {}:", category);
++            for strategy in strategies {
++                println!("    - {}", strategy);
++            }
++        }
++    } else if parts[1] == "add" && parts.len() >= 3 {
++        if parts[2] == "protocol" && parts.len() >= 6 {
++            // Add a new protocol
++            let name = parts[3];
++            let chain = parts[4];
++            let description = parts[5..].join(" ");
++            
++            let protocol = Protocol {
++                name: name.to_string(),
++                chain: chain.to_string(),
++                description,
++                focus: false,
++            };
++            
++            personality.add_protocol(protocol);
++            save_personality(path, personality)?;
++            println!("Added protocol: {} on {}", name, chain);
++        } else if parts[2] == "api" && parts.len() >= 6 {
++            // Add a new API
++            let name = parts[3];
++            let description = parts[4];
++            let endpoints = parts[5].split(',').map(|s| s.to_string()).collect();
++            
++            let api = ApiIntegration {
++                name: name.to_string(),
++                description: description.to_string(),
++                endpoints,
++            };
++            
++            personality.add_api(api);
++            save_personality(path, personality)?;
++            println!("Added API: {}", name);
++        } else if parts[2] == "strategy" && parts.len() >= 5 {
++            // Add a new strategy
++            let category = parts[3];
++            let strategy = parts[4..].join(" ");
++            
++            personality.add_strategy(category, strategy.clone());
++            save_personality(path, personality)?;
++            println!("Added {} strategy: {}", category, strategy);
++        } else {
++            println!("Invalid add command. Type '/personality help' for usage.");
++        }
++    } else if parts[1] == "focus" && parts.len() >= 3 {
++        // Set focus on a protocol
++        let name = parts[2];
++        let mut found = false;
++        
++        for protocol in &mut personality.integrations.protocols {
++            if protocol.name.to_lowercase() == name.to_lowercase() {
++                protocol.focus = true;
++                found = true;
++                break;
++            }
++        }
++        
++        if found {
++            save_personality(path, personality)?;
++            println!("Set focus on protocol: {}", name);
++        } else {
++            println!("Protocol not found: {}", name);
++        }
++    } else if parts[1] == "unfocus" && parts.len() >= 3 {
++        // Remove focus from a protocol
++        let name = parts[2];
++        let mut found = false;
++        
++        for protocol in &mut personality.integrations.protocols {
++            if protocol.name.to_lowercase() == name.to_lowercase() {
++                protocol.focus = false;
++                found = true;
++                break;
++            }
++        }
++        
++        if found {
++            save_personality(path, personality)?;
++            println!("Removed focus from protocol: {}", name);
++        } else {
++            println!("Protocol not found: {}", name);
++        }
++    } else {
++        println!("Unknown personality command. Type '/personality help' for available commands.");
++    }
++    
++    Ok(())
++}
+diff --git a/src/personality.rs b/src/personality.rs
+index 9093cbe..4ffffd1 100644
+--- a/src/personality.rs
++++ b/src/personality.rs
+@@ -1,23 +1,116 @@
+-use serde::Deserialize;
++use serde::{Deserialize, Serialize};
+ use std::fs;
++use std::collections::HashMap;
+ 
+-#[derive(Deserialize, Debug)]
++#[derive(Deserialize, Serialize, Debug, Clone)]
+ pub struct Personality {
+     pub name: String,
+     pub role: String,
+     pub style: Style,
+     pub rules: Vec<String>,
++    #[serde(default)]
++    pub integrations: Integrations,
++    #[serde(default)]
++    pub knowledge_sources: Vec<KnowledgeSource>,
++    #[serde(default)]
++    pub strategies: HashMap<String, Vec<String>>,
+ }
+ 
+-#[derive(Deserialize, Debug)]
++#[derive(Deserialize, Serialize, Debug, Clone)]
+ pub struct Style {
+     pub tone: String,
+     pub formality: String,
+     pub domain_focus: Vec<String>,
+ }
+ 
++#[derive(Deserialize, Serialize, Debug, Clone, Default)]
++pub struct Integrations {
++    #[serde(default)]
++    pub apis: Vec<ApiIntegration>,
++    #[serde(default)]
++    pub protocols: Vec<Protocol>,
++}
++
++#[derive(Deserialize, Serialize, Debug, Clone)]
++pub struct ApiIntegration {
++    pub name: String,
++    pub description: String,
++    pub endpoints: Vec<String>,
++}
++
++#[derive(Deserialize, Serialize, Debug, Clone)]
++pub struct Protocol {
++    pub name: String,
++    pub chain: String,
++    pub description: String,
++    #[serde(default)]
++    pub focus: bool,
++}
++
++#[derive(Deserialize, Serialize, Debug, Clone)]
++pub struct KnowledgeSource {
++    #[serde(rename = "type")]
++    pub source_type: String,
++    pub name: String,
++    pub description: String,
++}
++
++impl Personality {
++    /// Get all focused protocols
++    pub fn get_focused_protocols(&self) -> Vec<&Protocol> {
++        self.integrations.protocols.iter()
++            .filter(|p| p.focus)
++            .collect()
++    }
++    
++    /// Get all available APIs
++    pub fn get_apis(&self) -> Vec<&ApiIntegration> {
++        self.integrations.apis.iter().collect()
++    }
++    
++    /// Get strategies by category
++    pub fn get_strategies(&self, category: &str) -> Option<&Vec<String>> {
++        self.strategies.get(category)
++    }
++    
++    /// Get knowledge sources by type
++    pub fn get_knowledge_sources_by_type(&self, source_type: &str) -> Vec<&KnowledgeSource> {
++        self.knowledge_sources.iter()
++            .filter(|ks| ks.source_type == source_type)
++            .collect()
++    }
++    
++    /// Add a new knowledge source
++    pub fn add_knowledge_source(&mut self, source: KnowledgeSource) {
++        self.knowledge_sources.push(source);
++    }
++    
++    /// Add a new protocol
++    pub fn add_protocol(&mut self, protocol: Protocol) {
++        self.integrations.protocols.push(protocol);
++    }
++    
++    /// Add a new API integration
++    pub fn add_api(&mut self, api: ApiIntegration) {
++        self.integrations.apis.push(api);
++    }
++    
++    /// Add a new strategy to a category
++    pub fn add_strategy(&mut self, category: &str, strategy: String) {
++        self.strategies.entry(category.to_string())
++            .or_insert_with(Vec::new)
++            .push(strategy);
++    }
++}
++
+ pub fn load_personality(path: &str) -> anyhow::Result<Personality> {
+     let data = fs::read_to_string(path)?;
+     let persona: Personality = serde_json::from_str(&data)?;
+     Ok(persona)
+ }
++
++pub fn save_personality(path: &str, personality: &Personality) -> anyhow::Result<()> {
++    let data = serde_json::to_string_pretty(personality)?;
++    fs::write(path, data)?;
++    Ok(())
++}
+diff --git a/src/tools.rs b/src/tools.rs
+index 792dd66..25690c0 100644
+--- a/src/tools.rs
++++ b/src/tools.rs
+@@ -1,5 +1,4 @@
+ use serde::{Deserialize, Serialize};
+-use chrono::Local;
+ use ethers::prelude::*;
+ use ethers::types::transaction::eip2718::TypedTransaction;
+ use rand::Rng;
+@@ -31,16 +30,16 @@ pub struct ToolResponse {
+ pub fn get_available_tools() -> Vec<Tool> {
+     vec![
+         Tool {
+-            name: "get_weather".to_string(),
+-            description: "Get the current weather for a given city".to_string(),
++            name: "eth_wallet".to_string(),
++            description: "Ethereum wallet operations: generate new wallet, check balance, or send ETH".to_string(),
+         },
+         Tool {
+-            name: "get_time".to_string(),
+-            description: "Get the current time in a specific timezone or local time".to_string(),
++            name: "trading".to_string(),
++            description: "Trading operations: check balances, analyze market, create limit orders".to_string(),
+         },
+         Tool {
+-            name: "eth_wallet".to_string(),
+-            description: "Ethereum wallet operations: generate new wallet, check balance, or send ETH".to_string(),
++            name: "limit_orders".to_string(),
++            description: "Limit order operations: create, cancel, and check limit orders".to_string(),
+         },
+     ]
+ }
+@@ -52,18 +51,55 @@ pub fn get_tools_as_json() -> anyhow::Result<String> {
+ 
+ pub async fn execute_tool(name: &str, args: &serde_json::Value) -> anyhow::Result<String> {
+     match name {
+-        "get_weather" => {
+-            let city = args.get("city")
++        "trading" => {
++            let operation = args.get("operation")
+                 .and_then(|v| v.as_str())
+                 .unwrap_or("unknown");
+             
+-            get_weather(city).await
++            match operation {
++                "balance" => {
++                    Ok("Use /trade balance to check your balances".to_string())
++                },
++                "analyze" => {
++                    Ok("Use /trade analyze to get trading recommendations".to_string())
++                },
++                _ => Ok(format!("Unknown trading operation: {}", operation)),
++            }
+         },
+-        "get_time" => {
+-            let timezone = args.get("timezone")
+-                .and_then(|v| v.as_str());
++        "limit_orders" => {
++            let operation = args.get("operation")
++                .and_then(|v| v.as_str())
++                .unwrap_or("unknown");
+             
+-            get_time(timezone)
++            match operation {
++                "create" => {
++                    let order_type = args.get("order_type")
++                        .and_then(|v| v.as_str())
++                        .unwrap_or("unknown");
++                    let amount = args.get("amount")
++                        .and_then(|v| v.as_str())
++                        .unwrap_or("0");
++                    let price = args.get("price")
++                        .and_then(|v| v.as_str())
++                        .unwrap_or("0");
++                    
++                    Ok(format!("Use /trade limit {} {} {} to create a limit order", order_type, amount, price))
++                },
++                "list" => {
++                    Ok("Use /trade orders to list your open limit orders".to_string())
++                },
++                "cancel" => {
++                    let order_id = args.get("order_id")
++                        .and_then(|v| v.as_str())
++                        .unwrap_or("unknown");
++                    
++                    Ok(format!("Use /trade cancel {} to cancel a limit order", order_id))
++                },
++                "check" => {
++                    Ok("Use /trade check to check and execute limit orders".to_string())
++                },
++                _ => Ok(format!("Unknown limit order operation: {}", operation)),
++            }
+         },
+         "eth_wallet" => {
+             let operation = args.get("operation")
+@@ -110,38 +146,7 @@ pub async fn execute_tool(name: &str, args: &serde_json::Value) -> anyhow::Resul
+     }
+ }
+ 
+-async fn get_weather(city: &str) -> anyhow::Result<String> {
+-    // In a real implementation, you would call a weather API
+-    // For this example, we'll return mock data
+-    
+-    // Simulate API call delay
+-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+-    
+-    // Return mock data
+-    match city.to_lowercase().as_str() {
+-        "cairo" => Ok("30°C, sunny".to_string()),
+-        "london" => Ok("15°C, cloudy with occasional rain".to_string()),
+-        "new york" => Ok("22°C, partly cloudy".to_string()),
+-        "tokyo" => Ok("25°C, clear skies".to_string()),
+-        _ => Ok(format!("Weather data for {} is not available. This is a mock implementation.", city)),
+-    }
+-}
+-
+-fn get_time(timezone: Option<&str>) -> anyhow::Result<String> {
+-    let now = Local::now();
+-    
+-    match timezone {
+-        Some(tz) => {
+-            // In a real implementation, you would handle different timezones
+-            // For this example, we'll just return the local time with a note
+-            Ok(format!("Current time (local, timezone {} not implemented): {}", 
+-                      tz, now.format("%Y-%m-%d %H:%M:%S")))
+-        },
+-        None => {
+-            Ok(format!("Current local time: {}", now.format("%Y-%m-%d %H:%M:%S")))
+-        }
+-    }
+-}
++// Weather and time functions removed
+ 
+ // In-memory wallet storage (for demo purposes)
+ lazy_static::lazy_static! {
